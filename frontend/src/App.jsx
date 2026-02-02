@@ -119,59 +119,89 @@ function App() {
         switch (eventType) {
           case 'stage1_start':
             setCurrentConversation((prev) => {
-              const messages = [...prev.messages];
-              const lastMsg = messages[messages.length - 1];
-              lastMsg.loading.stage1 = true;
-              return { ...prev, messages };
+              const messages = prev.messages.slice(0, -1);
+              const lastMsg = prev.messages[prev.messages.length - 1];
+              return {
+                ...prev,
+                messages: [...messages, {
+                  ...lastMsg,
+                  loading: { ...lastMsg.loading, stage1: true },
+                }],
+              };
             });
             break;
 
           case 'stage1_complete':
             setCurrentConversation((prev) => {
-              const messages = [...prev.messages];
-              const lastMsg = messages[messages.length - 1];
-              lastMsg.stage1 = event.data;
-              lastMsg.loading.stage1 = false;
-              return { ...prev, messages };
+              const messages = prev.messages.slice(0, -1);
+              const lastMsg = prev.messages[prev.messages.length - 1];
+              return {
+                ...prev,
+                messages: [...messages, {
+                  ...lastMsg,
+                  stage1: event.data,
+                  loading: { ...lastMsg.loading, stage1: false },
+                }],
+              };
             });
             break;
 
           case 'stage2_start':
             setCurrentConversation((prev) => {
-              const messages = [...prev.messages];
-              const lastMsg = messages[messages.length - 1];
-              lastMsg.loading.stage2 = true;
-              return { ...prev, messages };
+              const messages = prev.messages.slice(0, -1);
+              const lastMsg = prev.messages[prev.messages.length - 1];
+              return {
+                ...prev,
+                messages: [...messages, {
+                  ...lastMsg,
+                  loading: { ...lastMsg.loading, stage2: true },
+                }],
+              };
             });
             break;
 
           case 'stage2_complete':
             setCurrentConversation((prev) => {
-              const messages = [...prev.messages];
-              const lastMsg = messages[messages.length - 1];
-              lastMsg.stage2 = event.data;
-              lastMsg.metadata = event.metadata;
-              lastMsg.loading.stage2 = false;
-              return { ...prev, messages };
+              const messages = prev.messages.slice(0, -1);
+              const lastMsg = prev.messages[prev.messages.length - 1];
+              return {
+                ...prev,
+                messages: [...messages, {
+                  ...lastMsg,
+                  stage2: event.data,
+                  metadata: event.metadata,
+                  loading: { ...lastMsg.loading, stage2: false },
+                }],
+              };
             });
             break;
 
           case 'stage3_start':
             setCurrentConversation((prev) => {
-              const messages = [...prev.messages];
-              const lastMsg = messages[messages.length - 1];
-              lastMsg.loading.stage3 = true;
-              return { ...prev, messages };
+              const messages = prev.messages.slice(0, -1);
+              const lastMsg = prev.messages[prev.messages.length - 1];
+              return {
+                ...prev,
+                messages: [...messages, {
+                  ...lastMsg,
+                  loading: { ...lastMsg.loading, stage3: true },
+                }],
+              };
             });
             break;
 
           case 'stage3_complete':
             setCurrentConversation((prev) => {
-              const messages = [...prev.messages];
-              const lastMsg = messages[messages.length - 1];
-              lastMsg.stage3 = event.data;
-              lastMsg.loading.stage3 = false;
-              return { ...prev, messages };
+              const messages = prev.messages.slice(0, -1);
+              const lastMsg = prev.messages[prev.messages.length - 1];
+              return {
+                ...prev,
+                messages: [...messages, {
+                  ...lastMsg,
+                  stage3: event.data,
+                  loading: { ...lastMsg.loading, stage3: false },
+                }],
+              };
             });
             break;
 
