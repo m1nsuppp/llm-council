@@ -1,6 +1,6 @@
 """FastAPI backend for LLM Council."""
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -12,6 +12,7 @@ import os
 
 from . import storage
 from .council import run_full_council, generate_conversation_title, stage1_collect_responses, stage2_collect_rankings, stage3_synthesize_final, calculate_aggregate_rankings
+from .auth import verify_password, create_token, verify_token
 
 app = FastAPI(title="LLM Council API")
 
@@ -29,6 +30,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+class LoginRequest(BaseModel):
+    """Request to login with shared password."""
+    password: str
 
 
 class CreateConversationRequest(BaseModel):
@@ -63,14 +69,23 @@ async def root():
     return {"status": "ok", "service": "LLM Council API"}
 
 
+@app.post("/api/login")
+async def login(request: LoginRequest):
+    """Login with shared password and get JWT token."""
+    if verify_password(request.password):
+        token = create_token()
+        return {"token": token}
+    raise HTTPException(status_code=401, detail="Invalid password")
+
+
 @app.get("/api/conversations", response_model=List[ConversationMetadata])
-async def list_conversations():
+async def list_conversations(_: bool = Depends(verify_token)):
     """List all conversations (metadata only)."""
     return storage.list_conversations()
 
 
 @app.post("/api/conversations", response_model=Conversation)
-async def create_conversation(request: CreateConversationRequest):
+async def create_conversation(request: CreateConversationRequest, _: bool = Depends(verify_token)):
     """Create a new conversation."""
     conversation_id = str(uuid.uuid4())
     conversation = storage.create_conversation(conversation_id)
@@ -78,7 +93,7 @@ async def create_conversation(request: CreateConversationRequest):
 
 
 @app.get("/api/conversations/{conversation_id}", response_model=Conversation)
-async def get_conversation(conversation_id: str):
+async def get_conversation(conversation_id: str, _: bool = Depends(verify_token)):
     """Get a specific conversation with all its messages."""
     conversation = storage.get_conversation(conversation_id)
     if conversation is None:
@@ -87,7 +102,7 @@ async def get_conversation(conversation_id: str):
 
 
 @app.post("/api/conversations/{conversation_id}/message")
-async def send_message(conversation_id: str, request: SendMessageRequest):
+async def send_message(conversation_id: str, request: SendMessageRequest, _: bool = Depends(verify_token)):
     """
     Send a message and run the 3-stage council process.
     Returns the complete response with all stages.
@@ -131,7 +146,7 @@ async def send_message(conversation_id: str, request: SendMessageRequest):
 
 
 @app.post("/api/conversations/{conversation_id}/message/stream")
-async def send_message_stream(conversation_id: str, request: SendMessageRequest):
+async def send_message_stream(conversation_id: str, request: SendMessageRequest, _: bool = Depends(verify_token)):
     """
     Send a message and stream the 3-stage council process.
     Returns Server-Sent Events as each stage completes.

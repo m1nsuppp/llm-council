@@ -1,19 +1,23 @@
 import { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatInterface from './components/ChatInterface';
+import Login from './components/Login';
 import { api } from './api';
 import './App.css';
 
 function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('token'));
   const [conversations, setConversations] = useState([]);
   const [currentConversationId, setCurrentConversationId] = useState(null);
   const [currentConversation, setCurrentConversation] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Load conversations on mount
+  // Load conversations on mount (if logged in)
   useEffect(() => {
-    loadConversations();
-  }, []);
+    if (isLoggedIn) {
+      loadConversations();
+    }
+  }, [isLoggedIn]);
 
   // Load conversation details when selected
   useEffect(() => {
@@ -22,12 +26,27 @@ function App() {
     }
   }, [currentConversationId]);
 
+  const handleLogin = (token) => {
+    setIsLoggedIn(true);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    setIsLoggedIn(false);
+    setConversations([]);
+    setCurrentConversationId(null);
+    setCurrentConversation(null);
+  };
+
   const loadConversations = async () => {
     try {
       const convs = await api.listConversations();
       setConversations(convs);
     } catch (error) {
       console.error('Failed to load conversations:', error);
+      if (error.message === 'Unauthorized') {
+        handleLogout();
+      }
     }
   };
 
@@ -37,6 +56,9 @@ function App() {
       setCurrentConversation(conv);
     } catch (error) {
       console.error('Failed to load conversation:', error);
+      if (error.message === 'Unauthorized') {
+        handleLogout();
+      }
     }
   };
 
@@ -50,6 +72,9 @@ function App() {
       setCurrentConversationId(newConv.id);
     } catch (error) {
       console.error('Failed to create conversation:', error);
+      if (error.message === 'Unauthorized') {
+        handleLogout();
+      }
     }
   };
 
@@ -172,14 +197,22 @@ function App() {
       });
     } catch (error) {
       console.error('Failed to send message:', error);
-      // Remove optimistic messages on error
-      setCurrentConversation((prev) => ({
-        ...prev,
-        messages: prev.messages.slice(0, -2),
-      }));
+      if (error.message === 'Unauthorized') {
+        handleLogout();
+      } else {
+        // Remove optimistic messages on error
+        setCurrentConversation((prev) => ({
+          ...prev,
+          messages: prev.messages.slice(0, -2),
+        }));
+      }
       setIsLoading(false);
     }
   };
+
+  if (!isLoggedIn) {
+    return <Login onLogin={handleLogin} />;
+  }
 
   return (
     <div className="app">
@@ -188,6 +221,7 @@ function App() {
         currentConversationId={currentConversationId}
         onSelectConversation={handleSelectConversation}
         onNewConversation={handleNewConversation}
+        onLogout={handleLogout}
       />
       <ChatInterface
         conversation={currentConversation}
