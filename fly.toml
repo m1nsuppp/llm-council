@@ -1,4 +1,4 @@
-app = "llm-council-api"
+app = "llm-council-a3ixvg"
 primary_region = "nrt"
 
 [build]
@@ -12,3 +12,7 @@ primary_region = "nrt"
 
 [env]
   PORT = "8080"
+
+[mounts]
+  source = "llm_council_data"
+  destination = "/app/data"
