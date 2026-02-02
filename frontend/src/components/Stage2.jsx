@@ -23,12 +23,12 @@ export default function Stage2({ rankings, labelToModel, aggregateRankings }) {
 
   return (
     <div className="stage stage2">
-      <h3 className="stage-title">Stage 2: Peer Rankings</h3>
+      <h3 className="stage-title">2단계: 상호 평가</h3>
 
-      <h4>Raw Evaluations</h4>
+      <h4>원본 평가</h4>
       <p className="stage-description">
-        Each model evaluated all responses (anonymized as Response A, B, C, etc.) and provided rankings.
-        Below, model names are shown in <strong>bold</strong> for readability, but the original evaluation used anonymous labels.
+        각 모델이 모든 응답(Response A, B, C 등으로 익명화됨)을 평가하고 순위를 매겼습니다.
+        아래에서 가독성을 위해 모델 이름이 <strong>굵은 글씨</strong>로 표시되지만, 원래 평가는 익명 레이블을 사용했습니다.
       </p>
 
       <div className="tabs">
@@ -56,7 +56,7 @@ export default function Stage2({ rankings, labelToModel, aggregateRankings }) {
         {rankings[activeTab].parsed_ranking &&
          rankings[activeTab].parsed_ranking.length > 0 && (
           <div className="parsed-ranking">
-            <strong>Extracted Ranking:</strong>
+            <strong>추출된 순위:</strong>
             <ol>
               {rankings[activeTab].parsed_ranking.map((label, i) => (
                 <li key={i}>
@@ -72,9 +72,9 @@ export default function Stage2({ rankings, labelToModel, aggregateRankings }) {
 
       {aggregateRankings && aggregateRankings.length > 0 && (
         <div className="aggregate-rankings">
-          <h4>Aggregate Rankings (Street Cred)</h4>
+          <h4>종합 순위 (신뢰도)</h4>
           <p className="stage-description">
-            Combined results across all peer evaluations (lower score is better):
+            모든 상호 평가의 종합 결과 (점수가 낮을수록 좋음):
           </p>
           <div className="aggregate-list">
             {aggregateRankings.map((agg, index) => (
@@ -84,10 +84,10 @@ export default function Stage2({ rankings, labelToModel, aggregateRankings }) {
                   {agg.model.split('/')[1] || agg.model}
                 </span>
                 <span className="rank-score">
-                  Avg: {agg.average_rank.toFixed(2)}
+                  평균: {agg.average_rank.toFixed(2)}
                 </span>
                 <span className="rank-count">
-                  ({agg.rankings_count} votes)
+                  ({agg.rankings_count}표)
                 </span>
               </div>
             ))}
