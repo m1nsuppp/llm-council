@@ -145,6 +145,77 @@ Models are hardcoded in `backend/config.py`. Chairman can be same or different f
 
 Use `test_openrouter.py` to verify API connectivity and test different model identifiers before adding to council. The script tests both streaming and non-streaming modes.
 
+## Deployment
+
+### Overview
+- **Backend**: Fly.io (Docker container)
+- **Frontend**: Vercel (static hosting)
+- **Region**: Tokyo (nrt) for low latency in Korea/Japan
+
+### Backend - Fly.io
+
+**App Info**
+- App name: `llm-council-a3ixvg`
+- URL: https://llm-council-a3ixvg.fly.dev
+- Region: `nrt` (Tokyo)
+
+**Configuration Files**
+- `fly.toml`: Fly.io app configuration
+- `Dockerfile`: Container build instructions
+
+**Volume (Persistent Storage)**
+- Name: `llm_council_data`
+- Size: 1GB
+- Mount: `/app/data` (stores conversation JSON files)
+- Note: Volume can only attach to one machine, so only 1 machine is used
+
+**Environment Variables (Secrets)**
+Set via `flyctl secrets set`:
+```bash
+flyctl secrets set OPENROUTER_API_KEY=sk-or-v1-xxx
+flyctl secrets set APP_PASSWORD=your-shared-password
+flyctl secrets set JWT_SECRET=your-secret-key-min-32-chars
+flyctl secrets set CORS_ORIGINS=https://your-frontend.vercel.app
+```
+
+**Deployment Commands**
+```bash
+flyctl deploy              # Deploy latest changes
+flyctl logs                # View application logs
+flyctl ssh console         # SSH into the machine
+flyctl volumes list        # List volumes
+```
+
+### Frontend - Vercel
+
+**URL**: https://llm-council-pi.vercel.app
+
+**Environment Variables**
+Set in Vercel dashboard (Settings → Environment Variables):
+- `VITE_API_URL`: `https://llm-council-a3ixvg.fly.dev`
+
+**Deployment**
+- Auto-deploys on push to `master` branch (connected to GitHub)
+- Build command: `cd frontend && npm install && npm run build`
+- Output directory: `frontend/dist`
+
+### Authentication
+
+Simple shared password authentication:
+1. User enters password on login page
+2. Backend validates against `APP_PASSWORD` env var
+3. Returns JWT token signed with `JWT_SECRET`
+4. Frontend stores token in localStorage
+5. All API requests include `Authorization: Bearer <token>` header
+
+**Security Note**: `JWT_SECRET` should be at least 32 characters for proper security.
+
+### CORS Configuration
+
+Backend accepts requests from origins specified in `CORS_ORIGINS` env var (comma-separated).
+Default: `http://localhost:5173,http://localhost:3000`
+Production: Add your Vercel domain
+
 ## Data Flow Summary
 
 ```
