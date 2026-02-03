@@ -3,11 +3,14 @@ import ReactMarkdown from 'react-markdown';
 import Stage1 from './Stage1';
 import Stage2 from './Stage2';
 import Stage3 from './Stage3';
+import PdfUpload from './PdfUpload';
 import './ChatInterface.css';
 
 export default function ChatInterface({
   conversation,
   onSendMessage,
+  onUploadPdf,
+  onRemovePdf,
   isLoading,
 }) {
   const [input, setInput] = useState('');
@@ -122,22 +125,34 @@ export default function ChatInterface({
 
       {conversation.messages.length === 0 && (
         <form className="input-form" onSubmit={handleSubmit}>
-          <textarea
-            className="message-input"
-            placeholder="질문을 입력하세요... (Shift+Enter: 줄바꿈, Enter: 전송)"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
+          <PdfUpload
+            onUpload={onUploadPdf}
+            onRemove={onRemovePdf}
             disabled={isLoading}
-            rows={3}
+            pdfContexts={conversation.pdf_contexts || []}
           />
-          <button
-            type="submit"
-            className="send-button"
-            disabled={!input.trim() || isLoading}
-          >
-            전송
-          </button>
+          <div className="input-row">
+            <textarea
+              className="message-input"
+              placeholder={
+                conversation.pdf_contexts?.length > 0
+                  ? "PDF에 대해 질문하세요... (Shift+Enter: 줄바꿈, Enter: 전송)"
+                  : "질문을 입력하세요... (Shift+Enter: 줄바꿈, Enter: 전송)"
+              }
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              disabled={isLoading}
+              rows={3}
+            />
+            <button
+              type="submit"
+              className="send-button"
+              disabled={!input.trim() || isLoading}
+            >
+              전송
+            </button>
+          </div>
         </form>
       )}
     </div>

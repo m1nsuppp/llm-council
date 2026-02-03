@@ -122,4 +122,56 @@ export const api = {
       }
     }
   },
+
+  /**
+   * Upload a PDF file to a conversation.
+   * @param {string} conversationId - The conversation ID
+   * @param {File} file - The PDF file to upload
+   * @returns {Promise<{success: boolean, pdf: {id: string, filename: string, summary: string}}>}
+   */
+  async uploadPdf(conversationId, file) {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const token = localStorage.getItem('token');
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}/upload-pdf`,
+      {
+        method: 'POST',
+        headers: {
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+        body: formData,
+      }
+    );
+
+    if (!response.ok) {
+      if (response.status === 401) throw new Error('Unauthorized');
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Failed to upload PDF');
+    }
+    return response.json();
+  },
+
+  /**
+   * Remove a PDF from a conversation.
+   * @param {string} conversationId - The conversation ID
+   * @param {string} pdfId - The PDF ID to remove
+   * @returns {Promise<{success: boolean}>}
+   */
+  async removePdf(conversationId, pdfId) {
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}/pdf/${pdfId}`,
+      {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      }
+    );
+
+    if (!response.ok) {
+      if (response.status === 401) throw new Error('Unauthorized');
+      throw new Error('Failed to remove PDF');
+    }
+    return response.json();
+  },
 };

@@ -240,6 +240,33 @@ function App() {
     }
   };
 
+  const handleUploadPdf = async (file) => {
+    if (!currentConversationId) return;
+
+    const result = await api.uploadPdf(currentConversationId, file);
+
+    // Update conversation state with new PDF
+    setCurrentConversation((prev) => ({
+      ...prev,
+      pdf_contexts: [
+        ...(prev.pdf_contexts || []),
+        result.pdf,
+      ],
+    }));
+  };
+
+  const handleRemovePdf = async (pdfId) => {
+    if (!currentConversationId) return;
+
+    await api.removePdf(currentConversationId, pdfId);
+
+    // Update conversation state
+    setCurrentConversation((prev) => ({
+      ...prev,
+      pdf_contexts: (prev.pdf_contexts || []).filter((pdf) => pdf.id !== pdfId),
+    }));
+  };
+
   if (!isLoggedIn) {
     return <Login onLogin={handleLogin} />;
   }
@@ -256,6 +283,8 @@ function App() {
       <ChatInterface
         conversation={currentConversation}
         onSendMessage={handleSendMessage}
+        onUploadPdf={handleUploadPdf}
+        onRemovePdf={handleRemovePdf}
         isLoading={isLoading}
       />
     </div>

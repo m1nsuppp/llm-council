@@ -1,0 +1,84 @@
+.pdf-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.pdf-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pdf-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: #f0fff0;
+  border: 1px solid #90EE90;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.pdf-icon {
+  font-size: 14px;
+}
+
+.pdf-name {
+  font-weight: 500;
+  color: #333;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pdf-remove {
+  background: none;
+  border: none;
+  color: #999;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+  transition: color 0.2s;
+}
+
+.pdf-remove:hover:not(:disabled) {
+  color: #cc0000;
+}
+
+.pdf-remove:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.upload-button {
+  align-self: flex-start;
+  padding: 8px 16px;
+  background: #f5f5f5;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  color: #666;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.upload-button:hover:not(:disabled) {
+  background: #e8e8e8;
+  border-color: #4a90e2;
+  color: #4a90e2;
+}
+
+.upload-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.upload-error {
+  color: #cc0000;
+  font-size: 12px;
+}
