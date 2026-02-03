@@ -1,18 +1,22 @@
 """FastAPI backend for LLM Council."""
 
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import uuid
 import json
 import asyncio
 import os
+import base64
+from datetime import datetime
 
 from . import storage
 from .council import run_full_council, generate_conversation_title, stage1_collect_responses, stage2_collect_rankings, stage3_synthesize_final, calculate_aggregate_rankings
 from .auth import verify_password, create_token, verify_token
+from .pdf_extractor import extract_pdf_with_ai
+from .config import MAX_PDF_SIZE_MB
 
 app = FastAPI(title="LLM Council API")
 
@@ -61,6 +65,7 @@ class Conversation(BaseModel):
     created_at: str
     title: str
     messages: List[Dict[str, Any]]
+    pdf_contexts: Optional[List[Dict[str, Any]]] = None
 
 
 @app.get("/")
@@ -98,7 +103,91 @@ async def get_conversation(conversation_id: str, _: bool = Depends(verify_token)
     conversation = storage.get_conversation(conversation_id)
     if conversation is None:
         raise HTTPException(status_code=404, detail="Conversation not found")
+    # Ensure pdf_contexts key exists
+    if "pdf_contexts" not in conversation:
+        conversation["pdf_contexts"] = []
     return conversation
+
+
+@app.post("/api/conversations/{conversation_id}/upload-pdf")
+async def upload_pdf(
+    conversation_id: str,
+    file: UploadFile = File(...),
+    _: bool = Depends(verify_token)
+):
+    """
+    Upload a PDF file to a conversation.
+    The PDF content is extracted using AI and stored as context.
+    """
+    # Check if conversation exists
+    conversation = storage.get_conversation(conversation_id)
+    if conversation is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    # Validate file type
+    if not file.filename.lower().endswith('.pdf'):
+        raise HTTPException(status_code=400, detail="PDF 파일만 업로드할 수 있습니다")
+
+    # Read file content
+    content = await file.read()
+
+    # Validate file size
+    if len(content) > MAX_PDF_SIZE_MB * 1024 * 1024:
+        raise HTTPException(
+            status_code=400,
+            detail=f"파일 크기는 {MAX_PDF_SIZE_MB}MB를 초과할 수 없습니다"
+        )
+
+    # Convert to base64
+    pdf_base64 = base64.b64encode(content).decode('utf-8')
+
+    # Extract content using AI
+    result = await extract_pdf_with_ai(pdf_base64, file.filename)
+
+    if result.get("error"):
+        raise HTTPException(status_code=400, detail=result["error"])
+
+    # Create PDF context
+    pdf_info = {
+        "id": str(uuid.uuid4()),
+        "filename": file.filename,
+        "uploaded_at": datetime.utcnow().isoformat(),
+        "text": result["text"],
+        "summary": result["summary"]
+    }
+
+    # Save to conversation
+    storage.add_pdf_context(conversation_id, pdf_info)
+
+    return {
+        "success": True,
+        "pdf": {
+            "id": pdf_info["id"],
+            "filename": pdf_info["filename"],
+            "summary": pdf_info["summary"]
+        }
+    }
+
+
+@app.delete("/api/conversations/{conversation_id}/pdf/{pdf_id}")
+async def delete_pdf(
+    conversation_id: str,
+    pdf_id: str,
+    _: bool = Depends(verify_token)
+):
+    """Remove a PDF context from a conversation."""
+    # Check if conversation exists
+    conversation = storage.get_conversation(conversation_id)
+    if conversation is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    # Remove PDF context
+    removed = storage.remove_pdf_context(conversation_id, pdf_id)
+
+    if not removed:
+        raise HTTPException(status_code=404, detail="PDF not found")
+
+    return {"success": True}
 
 
 @app.post("/api/conversations/{conversation_id}/message")
@@ -123,9 +212,13 @@ async def send_message(conversation_id: str, request: SendMessageRequest, _: boo
         title = await generate_conversation_title(request.content)
         storage.update_conversation_title(conversation_id, title)
 
+    # Get PDF contexts
+    pdf_contexts = conversation.get("pdf_contexts", [])
+
     # Run the 3-stage council process
     stage1_results, stage2_results, stage3_result, metadata = await run_full_council(
-        request.content
+        request.content,
+        pdf_contexts
     )
 
     # Add assistant message with all stages
@@ -159,6 +252,9 @@ async def send_message_stream(conversation_id: str, request: SendMessageRequest,
     # Check if this is the first message
     is_first_message = len(conversation["messages"]) == 0
 
+    # Get PDF contexts
+    pdf_contexts = conversation.get("pdf_contexts", [])
+
     async def event_generator():
         try:
             # Add user message
@@ -171,18 +267,18 @@ async def send_message_stream(conversation_id: str, request: SendMessageRequest,
 
             # Stage 1: Collect responses
             yield f"data: {json.dumps({'type': 'stage1_start'})}\n\n"
-            stage1_results = await stage1_collect_responses(request.content)
+            stage1_results = await stage1_collect_responses(request.content, pdf_contexts)
             yield f"data: {json.dumps({'type': 'stage1_complete', 'data': stage1_results})}\n\n"
 
             # Stage 2: Collect rankings
             yield f"data: {json.dumps({'type': 'stage2_start'})}\n\n"
-            stage2_results, label_to_model = await stage2_collect_rankings(request.content, stage1_results)
+            stage2_results, label_to_model = await stage2_collect_rankings(request.content, stage1_results, pdf_contexts)
             aggregate_rankings = calculate_aggregate_rankings(stage2_results, label_to_model)
             yield f"data: {json.dumps({'type': 'stage2_complete', 'data': stage2_results, 'metadata': {'label_to_model': label_to_model, 'aggregate_rankings': aggregate_rankings}})}\n\n"
 
             # Stage 3: Synthesize final answer
             yield f"data: {json.dumps({'type': 'stage3_start'})}\n\n"
-            stage3_result = await stage3_synthesize_final(request.content, stage1_results, stage2_results)
+            stage3_result = await stage3_synthesize_final(request.content, stage1_results, stage2_results, pdf_contexts)
             yield f"data: {json.dumps({'type': 'stage3_complete', 'data': stage3_result})}\n\n"
 
             # Wait for title generation if it was started
