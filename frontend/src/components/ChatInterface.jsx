@@ -12,6 +12,7 @@ export default function ChatInterface({
   onUploadPdf,
   onRemovePdf,
   isLoading,
+  isLoadingConversation,
 }) {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef(null);
@@ -39,6 +40,17 @@ export default function ChatInterface({
       handleSubmit(e);
     }
   };
+
+  if (isLoadingConversation) {
+    return (
+      <div className="chat-interface">
+        <div className="empty-state">
+          <div className="spinner"></div>
+          <p>대화 불러오는 중...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!conversation) {
     return (

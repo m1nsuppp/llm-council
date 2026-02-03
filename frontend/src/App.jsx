@@ -11,6 +11,9 @@ function App() {
   const [currentConversationId, setCurrentConversationId] = useState(null);
   const [currentConversation, setCurrentConversation] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingConversations, setIsLoadingConversations] = useState(false);
+  const [isLoadingConversation, setIsLoadingConversation] = useState(false);
+  const [isCreatingConversation, setIsCreatingConversation] = useState(false);
 
   // Load conversations on mount (if logged in)
   useEffect(() => {
@@ -39,6 +42,7 @@ function App() {
   };
 
   const loadConversations = async () => {
+    setIsLoadingConversations(true);
     try {
       const convs = await api.listConversations();
       setConversations(convs);
@@ -47,10 +51,14 @@ function App() {
       if (error.message === 'Unauthorized') {
         handleLogout();
       }
+    } finally {
+      setIsLoadingConversations(false);
     }
   };
 
   const loadConversation = async (id) => {
+    setIsLoadingConversation(true);
+    setCurrentConversation(null);
     try {
       const conv = await api.getConversation(id);
       setCurrentConversation(conv);
@@ -59,14 +67,17 @@ function App() {
       if (error.message === 'Unauthorized') {
         handleLogout();
       }
+    } finally {
+      setIsLoadingConversation(false);
     }
   };
 
   const handleNewConversation = async () => {
+    setIsCreatingConversation(true);
     try {
       const newConv = await api.createConversation();
       setConversations([
-        { id: newConv.id, created_at: newConv.created_at, message_count: 0 },
+        { id: newConv.id, created_at: newConv.created_at, title: newConv.title, message_count: 0 },
         ...conversations,
       ]);
       setCurrentConversationId(newConv.id);
@@ -75,6 +86,8 @@ function App() {
       if (error.message === 'Unauthorized') {
         handleLogout();
       }
+    } finally {
+      setIsCreatingConversation(false);
     }
   };
 
@@ -279,6 +292,8 @@ function App() {
         onSelectConversation={handleSelectConversation}
         onNewConversation={handleNewConversation}
         onLogout={handleLogout}
+        isLoading={isLoadingConversations}
+        isCreating={isCreatingConversation}
       />
       <ChatInterface
         conversation={currentConversation}
@@ -286,6 +301,7 @@ function App() {
         onUploadPdf={handleUploadPdf}
         onRemovePdf={handleRemovePdf}
         isLoading={isLoading}
+        isLoadingConversation={isLoadingConversation}
       />
     </div>
   );

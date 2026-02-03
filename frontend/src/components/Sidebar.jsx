@@ -6,18 +6,26 @@ export default function Sidebar({
   onSelectConversation,
   onNewConversation,
   onLogout,
+  isLoading,
+  isCreating,
 }) {
   return (
     <div className="sidebar">
       <div className="sidebar-header">
         <h1>LLM 평의회</h1>
-        <button className="new-conversation-btn" onClick={onNewConversation}>
-          + 새 대화
+        <button
+          className="new-conversation-btn"
+          onClick={onNewConversation}
+          disabled={isCreating}
+        >
+          {isCreating ? '생성 중...' : '+ 새 대화'}
         </button>
       </div>
 
       <div className="conversation-list">
-        {conversations.length === 0 ? (
+        {isLoading ? (
+          <div className="no-conversations">불러오는 중...</div>
+        ) : conversations.length === 0 ? (
           <div className="no-conversations">대화가 없습니다</div>
         ) : (
           conversations.map((conv) => (
