@@ -170,3 +170,74 @@ def update_conversation_title(conversation_id: str, title: str):
 
     conversation["title"] = title
     save_conversation(conversation)
+
+
+def add_pdf_context(conversation_id: str, pdf_info: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Add a PDF context to a conversation.
+
+    Args:
+        conversation_id: Conversation identifier
+        pdf_info: Dict containing id, filename, text, summary, uploaded_at
+
+    Returns:
+        The added pdf_info dict
+    """
+    conversation = get_conversation(conversation_id)
+    if conversation is None:
+        raise ValueError(f"Conversation {conversation_id} not found")
+
+    if "pdf_contexts" not in conversation:
+        conversation["pdf_contexts"] = []
+
+    conversation["pdf_contexts"].append(pdf_info)
+    save_conversation(conversation)
+
+    return pdf_info
+
+
+def remove_pdf_context(conversation_id: str, pdf_id: str) -> bool:
+    """
+    Remove a PDF context from a conversation.
+
+    Args:
+        conversation_id: Conversation identifier
+        pdf_id: PDF context identifier to remove
+
+    Returns:
+        True if removed, False if not found
+    """
+    conversation = get_conversation(conversation_id)
+    if conversation is None:
+        raise ValueError(f"Conversation {conversation_id} not found")
+
+    if "pdf_contexts" not in conversation:
+        return False
+
+    original_len = len(conversation["pdf_contexts"])
+    conversation["pdf_contexts"] = [
+        pdf for pdf in conversation["pdf_contexts"] if pdf["id"] != pdf_id
+    ]
+
+    if len(conversation["pdf_contexts"]) < original_len:
+        save_conversation(conversation)
+        return True
+
+    return False
+
+
+def get_pdf_contexts(conversation_id: str) -> List[Dict[str, Any]]:
+    """
+    Get all PDF contexts for a conversation.
+
+    Args:
+        conversation_id: Conversation identifier
+
+    Returns:
+        List of PDF context dicts
+    """
+    conversation = get_conversation(conversation_id)
+    if conversation is None:
+        return []
+
+    return conversation.get("pdf_contexts", [])
