@@ -5,17 +5,49 @@ from .openrouter import query_models_parallel, query_model
 from .config import COUNCIL_MODELS, CHAIRMAN_MODEL
 
 
-async def stage1_collect_responses(user_query: str) -> List[Dict[str, Any]]:
+def build_query_with_pdf_context(user_query: str, pdf_contexts: List[Dict[str, Any]] = None) -> str:
+    """
+    Build the full query including PDF contexts if present.
+
+    Args:
+        user_query: The user's question
+        pdf_contexts: List of PDF context dicts with 'filename' and 'text'
+
+    Returns:
+        Full query string with PDF contexts prepended
+    """
+    if not pdf_contexts:
+        return user_query
+
+    pdf_sections = []
+    for i, pdf in enumerate(pdf_contexts, 1):
+        pdf_sections.append(f"--- 문서 {i}: {pdf['filename']} ---\n{pdf['text']}")
+
+    pdf_text = "\n\n".join(pdf_sections)
+
+    return f"""다음 PDF 문서들을 참고하여 질문에 답변하세요:
+
+{pdf_text}
+
+질문: {user_query}"""
+
+
+async def stage1_collect_responses(
+    user_query: str,
+    pdf_contexts: List[Dict[str, Any]] = None
+) -> List[Dict[str, Any]]:
     """
     Stage 1: Collect individual responses from all council models.
 
     Args:
         user_query: The user's question
+        pdf_contexts: Optional list of PDF contexts
 
     Returns:
         List of dicts with 'model' and 'response' keys
     """
-    messages = [{"role": "user", "content": user_query}]
+    full_query = build_query_with_pdf_context(user_query, pdf_contexts)
+    messages = [{"role": "user", "content": full_query}]
 
     # Query all models in parallel
     responses = await query_models_parallel(COUNCIL_MODELS, messages)
@@ -34,7 +66,8 @@ async def stage1_collect_responses(user_query: str) -> List[Dict[str, Any]]:
 
 async def stage2_collect_rankings(
     user_query: str,
-    stage1_results: List[Dict[str, Any]]
+    stage1_results: List[Dict[str, Any]],
+    pdf_contexts: List[Dict[str, Any]] = None
 ) -> Tuple[List[Dict[str, Any]], Dict[str, str]]:
     """
     Stage 2: Each model ranks the anonymized responses.
@@ -61,9 +94,12 @@ async def stage2_collect_rankings(
         for label, result in zip(labels, stage1_results)
     ])
 
+    # Build context-aware question
+    full_query = build_query_with_pdf_context(user_query, pdf_contexts)
+
     ranking_prompt = f"""You are evaluating different responses to the following question:
 
-Question: {user_query}
+Question: {full_query}
 
 Here are the responses from different models (anonymized):
 
@@ -115,7 +151,8 @@ Now provide your evaluation and ranking:"""
 async def stage3_synthesize_final(
     user_query: str,
     stage1_results: List[Dict[str, Any]],
-    stage2_results: List[Dict[str, Any]]
+    stage2_results: List[Dict[str, Any]],
+    pdf_contexts: List[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """
     Stage 3: Chairman synthesizes final response.
@@ -139,9 +176,12 @@ async def stage3_synthesize_final(
         for result in stage2_results
     ])
 
+    # Build context-aware question
+    full_query = build_query_with_pdf_context(user_query, pdf_contexts)
+
     chairman_prompt = f"""You are the Chairman of an LLM Council. Multiple AI models have provided responses to a user's question, and then ranked each other's responses.
 
-Original Question: {user_query}
+Original Question: {full_query}
 
 STAGE 1 - Individual Responses:
 {stage1_text}
@@ -293,18 +333,22 @@ Title:"""
     return title
 
 
-async def run_full_council(user_query: str) -> Tuple[List, List, Dict, Dict]:
+async def run_full_council(
+    user_query: str,
+    pdf_contexts: List[Dict[str, Any]] = None
+) -> Tuple[List, List, Dict, Dict]:
     """
     Run the complete 3-stage council process.
 
     Args:
         user_query: The user's question
+        pdf_contexts: Optional list of PDF contexts
 
     Returns:
         Tuple of (stage1_results, stage2_results, stage3_result, metadata)
     """
     # Stage 1: Collect individual responses
-    stage1_results = await stage1_collect_responses(user_query)
+    stage1_results = await stage1_collect_responses(user_query, pdf_contexts)
 
     # If no models responded successfully, return error
     if not stage1_results:
@@ -314,7 +358,7 @@ async def run_full_council(user_query: str) -> Tuple[List, List, Dict, Dict]:
         }, {}
 
     # Stage 2: Collect rankings
-    stage2_results, label_to_model = await stage2_collect_rankings(user_query, stage1_results)
+    stage2_results, label_to_model = await stage2_collect_rankings(user_query, stage1_results, pdf_contexts)
 
     # Calculate aggregate rankings
     aggregate_rankings = calculate_aggregate_rankings(stage2_results, label_to_model)
@@ -323,7 +367,8 @@ async def run_full_council(user_query: str) -> Tuple[List, List, Dict, Dict]:
     stage3_result = await stage3_synthesize_final(
         user_query,
         stage1_results,
-        stage2_results
+        stage2_results,
+        pdf_contexts
     )
 
     # Prepare metadata
