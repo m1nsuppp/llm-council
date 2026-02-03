@@ -25,6 +25,10 @@ OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 # Data directory for conversation storage
 DATA_DIR = "data/conversations"
 
+# PDF configuration
+MAX_PDF_SIZE_MB = 10
+PDF_EXTRACTOR_MODEL = "anthropic/claude-sonnet-4"
+
 # System prompt for Korean law expertise
 SYSTEM_PROMPT = """당신은 대한민국 법률 전문가입니다. 다음 원칙에 따라 답변하세요:
 
